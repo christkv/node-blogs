@@ -110,9 +110,15 @@ h2#page-heading {
 .box h2 a:hover {
 	background-color:#111;
 }
+
 .block {
 	padding-top:10px;
 }
+
+.block.map {
+  height: 300;
+}
+
 div.menu {
 	padding:0;
 }

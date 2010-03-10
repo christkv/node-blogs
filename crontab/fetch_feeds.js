@@ -8,103 +8,156 @@ var urlParser = require('url');
 var mongo = require('mongodb/mongodb');
 var FeedReader = require('feedreader/feedreader').FeedReader;
 var MD5 = require('mongodb/mongodb/crypto/md5');
+var fs = require('fs');
+var querystring = require('querystring');
 
 var host = process.env['MONGO_NODE_DRIVER_HOST'] != null ? process.env['MONGO_NODE_DRIVER_HOST'] : 'localhost';
 var port = process.env['MONGO_NODE_DRIVER_PORT'] != null ? process.env['MONGO_NODE_DRIVER_PORT'] : mongo.Connection.DEFAULT_PORT;
 
-// Blogs to fetch
-var blogs = ['http://four.livejournal.com/data/rss', 'http://cpojer.net/xml/blog', 'http://christiankvalheim.posterous.com/rss.xml',
-  'http://blog.izs.me/rss', 'http://feeds.feedburner.com/NemikorBlog', 'http://www.stephenbelanger.com/feed/',
-  'http://howtonode.org/feed.xml'];
+// Read the content file containing all the aggregation users and their content
+fs.readFile("../conf/content.json", function(err, data) {
+  var users = JSON.parse(data);
 
-// Github users to follow for projects
-var githubUsers = ['christkv', 'ry'];
+  // // Fetch all the blog content
+  // new mongo.Db('node-blogs', new mongo.Server(host, port, {}), {}).open(function(db) {
+  //   fetchBlogs(db, users);
+  // });
+  // 
+  // // Fetch all the github content
+  // new mongo.Db('node-blogs', new mongo.Server(host, port, {}), {}).open(function(db) {
+  //   fetchGithub(db, users);
+  // });
 
-// Status variables to keep track of the state of the app
-var totalParsed = 0;
-
-new mongo.Db('node-blogs', new mongo.Server(host, port, {}), {}).open(function(db) {
-  fetchGithub(db, githubUsers);
+  // Fetch all the twitter info for a user
+  new mongo.Db('node-blogs', new mongo.Server(host, port, {}), {}).open(function(db) {
+    fetchTwitter(db, users);
+  });
 });
 
-new mongo.Db('node-blogs', new mongo.Server(host, port, {}), {}).open(function(db) {
-  fetchBlogs(db, blogs);
-});
+/***********************************************************************
+  Fetch twitter related info including location if available
+***********************************************************************/
+function fetchTwitter(db, users) {
+  // Status variables to keep track of the state of the app
+  var totalParsed = 0;
+
+  db.collection('twitterusers', function(err, collection) {
+    users.forEach(function(user) {
+      sys.puts("http://api.twitter.com/1/users/show.json?screen_name=" + user.twitter);
+      fetchGetUrl("http://api.twitter.com/1/users/show.json?screen_name=" + user.twitter, function(body) {
+        var twitterUser = JSON.parse(body);
+        twitterUser['_id'] = user.twitter;
+        
+        // Now geocode the location if possible using google
+        fetchGetUrl('http://maps.google.com/maps/geo?output=json&q=' + querystring.escape(twitterUser.location), function(body) {
+          var geoObject = JSON.parse(body);
+          // sys.puts(sys.inspect(geoObject));
+          if(geoObject.Status.code == 200) {
+            twitterUser['loc'] = {lat:geoObject.Placemark[0].Point.coordinates[0], long:geoObject.Placemark[0].Point.coordinates[1], addr:geoObject.Placemark[0].address};
+          }
+          // Save or update the twitter user
+          collection.save(twitterUser, function(err, twitterUser) {
+            totalParsed = totalParsed + 1;
+          });
+        });
+      });
+    });
+  });
+  
+  var intervalId = setInterval(function() {
+    if(totalParsed == users.length) { 
+      clearInterval(intervalId);
+      db.close();
+    }
+  }, 100);        
+}
 
 /***********************************************************************
   Fetch all the github projects related to nodejs
 ***********************************************************************/
-function fetchGithub(db, githubUsers) {
+function fetchGithub(db, users) {
   var done = false, done2 = false;
   
-  db.collection('githubprojects', function(err, collection) {
-    githubUsers.forEach(function(githubUser) {
-      // fetch all repos for a user
-      fetchGithubUrl("http://github.com/api/v2/json/repos/show/" + githubUser, function(body) {
-        // Modify documents for storage
-        var repositories = JSON.parse(body).repositories;
-        repositories.forEach(function(repo) {
+  // Fetch the current status of the fetch (to get around the issue of 60 calls pr minute on github :( )
+  db.collection('githubconf', function(err, collection) {
+    collection.findOne(function(err, conf) {
+      // Ensure the conf points at the start of the list
+      if(conf == null) conf = {'position':0};
+      // fetch the user based on the position
+      if(users.length > conf.position) {
+        var user = users[conf.position];
+        
+        // Process the user
+        fetchGetUrl("http://github.com/api/v2/json/repos/show/" + user.github, function(body) {
+          // Modify documents for storage
+          var repositories = JSON.parse(body).repositories;
+          repositories.forEach(function(repo) {
 
-          new mongo.Db('node-blogs', new mongo.Server(host, port, {}), {}).open(function(db) {
-            db.collection('githubprojects', function(err, collection) {
-              var doneInternal = false;
+            new mongo.Db('node-blogs', new mongo.Server(host, port, {}), {}).open(function(db) {
+              db.collection('githubprojects', function(err, collection) {
+                var doneInternal = false;
 
-              fetchGithubUrl("http://github.com/api/v2/json/repos/search/" + repo.name, function(body) {
-                var repositories = JSON.parse(body).repositories;
-                repositories.forEach(function(repo) {
-                  if(repo.language.match(/javascript/i) != null && repo.description.match(/node/i) && repo.fork == false) {
-                    sys.puts("== Fetching: " + repo.description);
-                    repo['_id'] = repo.id;
-                    delete repo.id;
-                
-                    collection.save(repo, function(err, doc) {});
+                fetchGetUrl("http://github.com/api/v2/json/repos/search/" + repo.name, function(body) {
+                  var repositories = JSON.parse(body).repositories;
+                  repositories.forEach(function(repo) {
+                    if(repo.language.match(/javascript/i) != null && repo.description.match(/node/i) && repo.fork == false) {
+                      sys.puts("== Fetching: " + repo.description);
+                      repo['_id'] = repo.id;
+                      repo['url'] = "http://www.github.com/" + repo.username + "/" + repo.name;
+                      delete repo.id;
+
+                      collection.save(repo, function(err, doc) {});
+                    }
+                  });            
+                  // Finish internal fetch
+                  doneInternal = true;
+                });
+
+                var intervalIdInternal = setInterval(function() {
+                  if(doneInternal) { 
+                    clearInterval(intervalIdInternal);
+                    db.close();
                   }
-                });            
-                // Finish internal fetch
-                doneInternal = true;
-              });
-
-              var intervalIdInternal = setInterval(function() {
-                if(doneInternal) { 
-                  clearInterval(intervalIdInternal);
-                  db.close();
-                }
-              }, 100);      
-            })
+                }, 100);      
+              })
+            });
           });
+          // Finish main loop
+          done = true;
         });
-        // Finish main loop
-        done = true;
-      });
 
-      // fetch all repos for a user
-      fetchGithubUrl("http://github.com/api/v2/json/user/show/" + githubUser, function(body) {
-        // Modify documents for storage
-        var user = JSON.parse(body).user;
-        user['_id'] = user.login;
-        user['gravatar_url'] = 'https://secure.gravatar.com/avatar/' + user.gravatar_id;
-        sys.puts(sys.inspect(user));
-        db.collection('githubusers', function(err, collection) {
-          collection.save(user, function(err, user) {});
-        })
-        // Finish main loop
-        done2 = true;
-      });
+        // fetch all repos for a user
+        fetchGetUrl("http://github.com/api/v2/json/user/show/" + user.github, function(body) {
+          // Modify documents for storage
+          var user = JSON.parse(body).user;
+          user['_id'] = user.login;
+          user['gravatar_url'] = 'https://secure.gravatar.com/avatar/' + user.gravatar_id;
+          sys.puts(sys.inspect(user));
+          db.collection('githubusers', function(err, collection) {
+            collection.save(user, function(err, user) {});
+          })
+          // Finish main loop
+          done2 = true;
+        });        
+        
+        var intervalId = setInterval(function() {
+          if(done & done2) { 
+            clearInterval(intervalId);
+            // Update the conf
+            conf.position = conf.position + 1 >= users.length ? conf.position = 0 : conf.position + 1;
+            collection.save(conf, function(err, doc) { db.close(); });            
+          }
+        }, 100);              
+      }      
     });    
-  });  
-  
-  var intervalId = setInterval(function() {
-    if(done & done2) { 
-      clearInterval(intervalId);
-      db.close();
-    }
-  }, 100);      
+  });
 }
 
-function fetchGithubUrl(url, callback) {
+function fetchGetUrl(url, callback) {
   var url = urlParser.parse(url);  
+  // sys.puts(sys.inspect(url));
   var client = http.createClient(80, url.host);
-  var request = client.request("GET", url.pathname, {"host": url.host});
+  var request = client.request("GET", url.pathname + url.search, {"host": url.host});
 
   request.addListener('response', function (response) {
     var body = '';
@@ -118,17 +171,20 @@ function fetchGithubUrl(url, callback) {
 /***********************************************************************
   Fetch all the blogs
 ***********************************************************************/
-function fetchBlogs(db, blogs) {
+function fetchBlogs(db, users) {
+  // Status variables to keep track of the state of the app
+  var totalParsed = 0;
+
   db.collection('blogs', function(err, collection) {
     db.collection('blogentries', function(err, entriesCollection) {
       
-      blogs.forEach(function(blogUrl) {
-        var feedReader = new FeedReader(blogUrl);
+      users.forEach(function(user) {
+        var feedReader = new FeedReader(user.feed);
         feedReader.parse(function(document) {
           // Fetch the existing blog based on url
-          collection.findOne({'url':blogUrl}, function(err, doc) {
-            var blog = doc != null ? doc : {'title':document.title, 'url': blogUrl, 'description':document.description};
-            sys.puts("== Parsing: " + blogUrl);
+          collection.findOne({'url':user.feed}, function(err, doc) {
+            var blog = doc != null ? doc : {'title':document.title, 'url': user.feed, 'description':document.description};
+            sys.puts("== Parsing: " + user.feed);
   
             // Just save it (async so we don't care about waiting around)
             collection.save(blog, function(err, blogDoc) {
@@ -166,8 +222,7 @@ function fetchBlogs(db, blogs) {
   
             // Build final document
             totalParsed = totalParsed + 1;
-          });
-          
+          });          
         });    
       });      
       
@@ -178,7 +233,7 @@ function fetchBlogs(db, blogs) {
   });  
   
   var intervalId = setInterval(function() {
-    if(totalParsed == blogs.length) { 
+    if(totalParsed == users.length) { 
       clearInterval(intervalId);
       db.close();
     }

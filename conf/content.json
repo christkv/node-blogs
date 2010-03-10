@@ -1,0 +1,29 @@
+[
+  {
+    "name": "Ryan Dahl",
+    "github": "ry",
+    "feed": "http://four.livejournal.com/data/rss",
+    "twitter": "ryan"
+  },
+  
+  {
+    "name": "Felix Geisendörfer",
+    "github": "felixge",
+    "feed": "http://feeds.feedburner.com/debuggable",
+    "twitter": "felixge"  
+  },
+
+  {
+    "name": "Tim Caswell",
+    "github": "creationix",
+    "feed": "http://howtonode.org/feed.xml",
+    "twitter": "creationix"  
+  },
+  
+  {
+    "name": "Isaac Z. Schlueterblog",
+    "github": "isaacs",
+    "feed": "http://blog.izs.me/rss",
+    "twitter": "izs"  
+  }  
+]
