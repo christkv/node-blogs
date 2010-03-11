@@ -9,7 +9,7 @@ var sys = require('sys');
 var simplifier = require('simplifier/simplifier');
 
 // Set up a Db and open connection to the mongodb
-var db = new mongo.Db('node-blogs', new mongo.Server("127.0.0.1", 27017, {auto_reconnect: true}, {}));
+var db = new mongo.Db('nodeblogs', new mongo.Server("127.0.0.1", 27017, {auto_reconnect: true}, {}));
 db.open(function(db) {});
 
 configure(function(){

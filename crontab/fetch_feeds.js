@@ -18,18 +18,18 @@ var port = process.env['MONGO_NODE_DRIVER_PORT'] != null ? process.env['MONGO_NO
 fs.readFile("../conf/content.json", function(err, data) {
   var users = JSON.parse(data);
 
-  // // Fetch all the blog content
-  // new mongo.Db('node-blogs', new mongo.Server(host, port, {}), {}).open(function(db) {
-  //   fetchBlogs(db, users);
-  // });
-  // 
-  // // Fetch all the github content
-  // new mongo.Db('node-blogs', new mongo.Server(host, port, {}), {}).open(function(db) {
-  //   fetchGithub(db, users);
-  // });
+  // Fetch all the blog content
+  new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(db) {
+    fetchBlogs(db, users);
+  });
+  
+  // Fetch all the github content
+  new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(db) {
+    fetchGithub(db, users);
+  });
 
   // Fetch all the twitter info for a user
-  new mongo.Db('node-blogs', new mongo.Server(host, port, {}), {}).open(function(db) {
+  new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(db) {
     fetchTwitter(db, users);
   });
 });
@@ -43,15 +43,13 @@ function fetchTwitter(db, users) {
 
   db.collection('twitterusers', function(err, collection) {
     users.forEach(function(user) {
-      sys.puts("http://api.twitter.com/1/users/show.json?screen_name=" + user.twitter);
-      fetchGetUrl("http://api.twitter.com/1/users/show.json?screen_name=" + user.twitter, function(body) {
+      fetchGetUrl("http://api.twitter.com/1/users/show.json?screen_name=" + querystring.escape(user.twitter), function(body) {
         var twitterUser = JSON.parse(body);
         twitterUser['_id'] = user.twitter;
         
         // Now geocode the location if possible using google
         fetchGetUrl('http://maps.google.com/maps/geo?output=json&q=' + querystring.escape(twitterUser.location), function(body) {
           var geoObject = JSON.parse(body);
-          // sys.puts(sys.inspect(geoObject));
           if(geoObject.Status.code == 200) {
             twitterUser['loc'] = {lat:geoObject.Placemark[0].Point.coordinates[0], long:geoObject.Placemark[0].Point.coordinates[1], addr:geoObject.Placemark[0].address};
           }
@@ -86,56 +84,63 @@ function fetchGithub(db, users) {
       // fetch the user based on the position
       if(users.length > conf.position) {
         var user = users[conf.position];
-        
+        sys.puts("============= fetching github info for: " + user.github);
         // Process the user
-        fetchGetUrl("http://github.com/api/v2/json/repos/show/" + user.github, function(body) {
+        sys.puts("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github));
+        fetchGetUrl("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github), function(body) {
           // Modify documents for storage
           var repositories = JSON.parse(body).repositories;
-          repositories.forEach(function(repo) {
+          if(repositories != null) {
+            repositories.forEach(function(repo) {
+              new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(db) {
+                db.collection('githubprojects', function(err, collection) {
+                  var doneInternal = false;
 
-            new mongo.Db('node-blogs', new mongo.Server(host, port, {}), {}).open(function(db) {
-              db.collection('githubprojects', function(err, collection) {
-                var doneInternal = false;
+                  sys.puts("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github) + "/" + querystring.escape(repo.name));
+                  fetchGetUrl("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github) + "/" + querystring.escape(repo.name), function(body) {
+                    var repository = JSON.parse(body).repository;
+                    if(repository != null) {
+                      // sys.puts(sys.inspect(repository));
+                      if(((repository.description != null && repository.description.match(/node/i)) || repository.name.match(/node/i)) && repository.fork == false) {
+                        sys.puts("== Fetching: [" + repository.name + "] " + repository.description);
+                        repo['_id'] = repository.id;
+                        repo['description'] = repository.description == null ? 'No description on github' : repository.description;
+                        repo['url'] = "http://www.github.com/" + repository.username + "/" + repository.name;
+                        delete repository.id;
 
-                fetchGetUrl("http://github.com/api/v2/json/repos/search/" + repo.name, function(body) {
-                  var repositories = JSON.parse(body).repositories;
-                  repositories.forEach(function(repo) {
-                    if(repo.language.match(/javascript/i) != null && repo.description.match(/node/i) && repo.fork == false) {
-                      sys.puts("== Fetching: " + repo.description);
-                      repo['_id'] = repo.id;
-                      repo['url'] = "http://www.github.com/" + repo.username + "/" + repo.name;
-                      delete repo.id;
-
-                      collection.save(repo, function(err, doc) {});
+                        collection.save(repository, function(err, doc) {});
+                      }
                     }
-                  });            
-                  // Finish internal fetch
-                  doneInternal = true;
-                });
+                    // Finish internal fetch
+                    doneInternal = true;
+                  });
 
-                var intervalIdInternal = setInterval(function() {
-                  if(doneInternal) { 
-                    clearInterval(intervalIdInternal);
-                    db.close();
-                  }
-                }, 100);      
-              })
-            });
-          });
+                  var intervalIdInternal = setInterval(function() {
+                    if(doneInternal) { 
+                      clearInterval(intervalIdInternal);
+                      db.close();
+                    }
+                  }, 100);      
+                })
+              });
+            });            
+          }
           // Finish main loop
           done = true;
         });
 
         // fetch all repos for a user
-        fetchGetUrl("http://github.com/api/v2/json/user/show/" + user.github, function(body) {
+        sys.puts("http://github.com/api/v2/json/user/show/" + querystring.escape(user.github));
+        fetchGetUrl("http://github.com/api/v2/json/user/show/" + querystring.escape(user.github), function(body) {
           // Modify documents for storage
           var user = JSON.parse(body).user;
-          user['_id'] = user.login;
-          user['gravatar_url'] = 'https://secure.gravatar.com/avatar/' + user.gravatar_id;
-          sys.puts(sys.inspect(user));
-          db.collection('githubusers', function(err, collection) {
-            collection.save(user, function(err, user) {});
-          })
+          if(user != null) {
+            user['_id'] = user.login;
+            user['gravatar_url'] = 'https://secure.gravatar.com/avatar/' + user.gravatar_id;
+            db.collection('githubusers', function(err, collection) {
+              collection.save(user, function(err, user) {});
+            })            
+          }
           // Finish main loop
           done2 = true;
         });        
@@ -155,10 +160,10 @@ function fetchGithub(db, users) {
 
 function fetchGetUrl(url, callback) {
   var url = urlParser.parse(url);  
-  // sys.puts(sys.inspect(url));
   var client = http.createClient(80, url.host);
-  var request = client.request("GET", url.pathname + url.search, {"host": url.host});
-
+  var path = url.pathname + (url.search == null ? '' : url.search);
+  var request = client.request("GET", path, {"host": url.host});
+  
   request.addListener('response', function (response) {
     var body = '';
     response.setBodyEncoding("utf8");
