@@ -8,6 +8,10 @@ var mongo = require('mongodb/mongodb');
 var sys = require('sys');
 var simplifier = require('simplifier/simplifier');
 
+// Set up the host for the server
+var host = process.env['NODEBLOGS_HOST'] != null ? process.env['NODEBLOGS_HOST'] : 'localhost';
+var port = process.env['NODEBLOGS_PORT'] != null ? process.env['NODEBLOGS_PORT'] : 3000;
+
 // Set up a Db and open connection to the mongodb
 var db = new mongo.Db('nodeblogs', new mongo.Server("127.0.0.1", 27017, {auto_reconnect: true}, {}));
 db.open(function(db) {});
@@ -98,7 +102,7 @@ get('/', function() {
       
       function(callback) {
         db.collection('githubprojects', function(err, collection) {
-          collection.find({}, {limit:45, sort:[['followers', -1]]}, function(err, cursor) {
+          collection.find({}, {limit:45, sort:[['watchers', -1]]}, function(err, cursor) {
             cursor.toArray(function(err, projects) { callback(projects); })
           });
         });              
@@ -158,4 +162,5 @@ get('/*.js', function(file){
   this.sendfile(__dirname + '/public/' + file + '.js');
 })
 
+// run(port, host)
 run()

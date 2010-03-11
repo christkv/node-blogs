@@ -86,7 +86,6 @@ function fetchGithub(db, users) {
         var user = users[conf.position];
         sys.puts("============= fetching github info for: " + user.github);
         // Process the user
-        sys.puts("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github));
         fetchGetUrl("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github), function(body) {
           // Modify documents for storage
           var repositories = JSON.parse(body).repositories;
@@ -96,16 +95,14 @@ function fetchGithub(db, users) {
                 db.collection('githubprojects', function(err, collection) {
                   var doneInternal = false;
 
-                  sys.puts("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github) + "/" + querystring.escape(repo.name));
                   fetchGetUrl("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github) + "/" + querystring.escape(repo.name), function(body) {
                     var repository = JSON.parse(body).repository;
                     if(repository != null) {
-                      // sys.puts(sys.inspect(repository));
                       if(((repository.description != null && repository.description.match(/node/i)) || repository.name.match(/node/i)) && repository.fork == false) {
                         sys.puts("== Fetching: [" + repository.name + "] " + repository.description);
-                        repo['_id'] = repository.id;
-                        repo['description'] = repository.description == null ? 'No description on github' : repository.description;
-                        repo['url'] = "http://www.github.com/" + repository.username + "/" + repository.name;
+                        repository['_id'] = repository.owner + repository.name;
+                        repository['description'] = repository.description == null ? 'No description on github' : repository.description;
+                        repository['url'] = "http://www.github.com/" + repository.username + "/" + repository.name;
                         delete repository.id;
 
                         collection.save(repository, function(err, doc) {});
@@ -130,7 +127,6 @@ function fetchGithub(db, users) {
         });
 
         // fetch all repos for a user
-        sys.puts("http://github.com/api/v2/json/user/show/" + querystring.escape(user.github));
         fetchGetUrl("http://github.com/api/v2/json/user/show/" + querystring.escape(user.github), function(body) {
           // Modify documents for storage
           var user = JSON.parse(body).user;
