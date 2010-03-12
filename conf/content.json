@@ -25,5 +25,12 @@
     "github": "isaacs",
     "feed": "http://blog.izs.me/rss",
     "twitter": "izs"  
-  }    
+  },
+  
+  { 
+    "name": "Mikeal Rogers",
+    "github": "mikeal",
+    "feed": "http://www.mikealrogers.com/archives/category/node-js/feed",
+    "twitter": "mikeal"
+  }   
 ]
