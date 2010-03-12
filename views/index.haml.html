@@ -24,6 +24,10 @@
           %div{class:'article'}
             %h3
               %a{href:entry.link}= entry.title
+            %h4
+              = entry.creator 
+              @
+              = entry.channel
             %p{class:'meta'}= entry.published_on
             %p= entry.description      
   %div{class:'grid_5'}

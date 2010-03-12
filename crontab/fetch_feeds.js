@@ -193,6 +193,7 @@ function fetchBlogs(db, users) {
                 var categories = [];
                 var title = item.title != null ? item.title.toString().trim() : '';
                 var creator = item.creator != null ? item.creator.toString().trim() : '';
+                creator = creator == '' ? item.author != null ? item.author.toString().trim() : '' : creator;
                 var guid = item.guid != null ? item.guid.toString().trim() : '';
                 var md5 = MD5.hex_md5(guid);
                 var link = item.link != null ? item.link.toString().trim() : '';
@@ -207,8 +208,11 @@ function fetchBlogs(db, users) {
                 if(title.length > 0 && guid.length > 0 && description.length > 0 && item.pubDate != null) {
                   if(description.match(/nodejs/i) != null || description.match(/javascript/i) != null) {
                     link = link.length == 0 ? guid : link;
+                    var url = urlParser.parse(link);                      
+                    var channel = url.protocol + "//" + url.host;
+                    
                     // Build a simple object from the data
-                    var doc = {'_id': md5, 'title':title, 'guid':guid, 'link':link, 'creator':creator, 
+                    var doc = {'_id': md5, 'title':title, 'guid':guid, 'link':link, 'creator':creator, 'channel':channel,
                                 'categories': categories, 'description':description, 'content':content, 'published_on':pubDate, 'published_on_mili':pubDate.getTime(),
                                 'blog': new mongo.DBRef('blogs', blogDoc._id, db.databaseName)};
                     // Insert document if it does not exist

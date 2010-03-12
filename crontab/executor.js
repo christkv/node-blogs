@@ -10,4 +10,4 @@ var intervalId = setInterval(function() {
   ls.addListener("output", function (data) {
     sys.puts(data);
   });
-}, 1000*60);        
+}, 1000*60*30);        
