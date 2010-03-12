@@ -2,7 +2,7 @@ require.paths.unshift('../lib');
 require.paths.unshift('../external-libs');
 
 var test = require("mjsunit");
-var sys = require("sys");
+sys = require("sys");
 var http = require('http');
 var urlParser = require('url');
 var mongo = require('mongodb/mongodb');
@@ -45,7 +45,12 @@ function fetchTwitter(db, users) {
     users.forEach(function(user) {
       fetchGetUrl("http://api.twitter.com/1/users/show.json?screen_name=" + querystring.escape(user.twitter), function(body) {
         var twitterUser = JSON.parse(body);
-        twitterUser['_id'] = user.twitter;
+        twitterUser['_id'] = twitterUser.screen_name;
+
+        // Save or update the twitter user
+        collection.save(twitterUser, function(err, twitterUser) {
+          totalParsed = totalParsed + 1;
+        });
         
         // Now geocode the location if possible using google
         fetchGetUrl('http://maps.google.com/maps/geo?output=json&q=' + querystring.escape(twitterUser.location), function(body) {

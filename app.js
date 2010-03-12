@@ -162,4 +162,5 @@ get('/*.js', function(file){
   this.sendfile(__dirname + '/public/' + file + '.js');
 })
 
-run(port, host)
+// run(port, host)
+run()

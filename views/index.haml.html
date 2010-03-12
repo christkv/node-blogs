@@ -43,7 +43,7 @@
           :each project in projects
             %tr
               %td
-                %a{href:project.url}= project.name      
+                %a{href:"http://www.github.com/" + project.owner + "/" + project.name}= project.name      
               %td= project.watchers      
               %td= project.description      
   %div{class:'clear'}
