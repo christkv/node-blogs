@@ -47,11 +47,6 @@ function fetchTwitter(db, users) {
         var twitterUser = JSON.parse(body);
         twitterUser['_id'] = twitterUser.screen_name;
 
-        // Save or update the twitter user
-        collection.save(twitterUser, function(err, twitterUser) {
-          totalParsed = totalParsed + 1;
-        });
-        
         // Now geocode the location if possible using google
         fetchGetUrl('http://maps.google.com/maps/geo?output=json&q=' + querystring.escape(twitterUser.location), function(body) {
           var geoObject = JSON.parse(body);
