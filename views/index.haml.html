@@ -16,7 +16,9 @@
   %div{class:'grid_7'}
     %div{class:'box articles'}
       %h2
-        %a{href:'#', id:'toggle-articles'} Articles
+        %a{href:'feeds/main.xml'}        
+          %img{src:'public/images/rss-feed.png', width:15, height:15}        
+        = " Articles"
       %div{class:'block', id:'articles'}
         :each entry in entries
           %div{class:'article'}
@@ -40,12 +42,18 @@
       %h2 Community Projects
       %div{class:'block'}
         %table
-          :each project in projects
+          %thead
             %tr
-              %td
-                %a{href:"http://www.github.com/" + project.owner + "/" + project.name}= project.name      
-              %td= project.watchers      
-              %td= project.description      
+              %th Name
+              %th Watchers
+              %th Description
+          %tbody
+            :each project in projects
+              %tr
+                %td
+                  %a{href:"http://www.github.com/" + project.owner + "/" + project.name}= project.name      
+                %td= project.watchers      
+                %td= project.description      
   %div{class:'clear'}
   %div{class:'grid_12', id:'site_info'}
     %div{class:'box'}

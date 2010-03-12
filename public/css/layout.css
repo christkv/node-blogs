@@ -366,6 +366,10 @@ input.search.button {
 .articles h2 {
 	margin:0;
 }
+.articles img {
+  float:right;
+}
+
 #articles {
 	padding-top:0;
 }

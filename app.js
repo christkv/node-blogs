@@ -7,6 +7,7 @@ require('express/plugins');
 var mongo = require('mongodb/mongodb');
 var sys = require('sys');
 var simplifier = require('simplifier/simplifier');
+var querystring = require('querystring');
 
 // Set up the host for the server
 var host = process.env['NODEBLOGS_HOST'] != null ? process.env['NODEBLOGS_HOST'] : 'localhost';
@@ -16,6 +17,12 @@ var port = process.env['NODEBLOGS_PORT'] != null ? process.env['NODEBLOGS_PORT']
 var db = new mongo.Db('nodeblogs', new mongo.Server("127.0.0.1", 27017, {auto_reconnect: true}, {}));
 db.open(function(db) {});
 
+// Just mix in a helper method to the String class
+String.prototype.escapeHTML = function() {
+  return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Configure the app
 configure(function(){
   use(MethodOverride);
   use(ContentLength);
@@ -26,12 +33,8 @@ configure(function(){
   set('root', __dirname);
 });
 
-get('/hello', function() {
-  this.halt(200, "Hello word");
-})
-
 /**
-  Main file
+  Index showing aggregated information
 **/
 get('/', function() {
   var self = this;
@@ -64,10 +67,6 @@ get('/', function() {
           google.maps.event.addListener(marker, 'click', function() {
             map.panTo(userlatlng);
           });
-          // Add double click event handling
-          // google.maps.event.addListener(marker, 'dblclick', function() {
-          //   alert('double click');
-          // });          
         }
       }
     }}).get();
@@ -121,8 +120,11 @@ get('/', function() {
       });                            
     }
   );
-});
+})
 
+/**
+  Allows google maps gadget to render the user locations
+**/
 get('/users/location', function() {
   var self = this;
 
@@ -144,7 +146,45 @@ get('/users/location', function() {
     function(userlocations) {
       self.halt(200, JSON.stringify(userlocations));
     })
-});
+})
+
+/**
+  RSS feed for aggregated blogs
+**/
+get('/feeds/main.xml', function() {  
+  var self = this;
+
+  // Execute 
+  new simplifier.Simplifier().execute(
+    // Context
+    self,
+    
+    // Array of processes to execute before doing final handling
+    [
+      function(callback) {
+        db.collection('blogentries', function(err, collection) {
+          collection.find({}, {limit:25}, function(err, cursor) {
+            cursor.sort('published_on_mili', -1, function(err, cursor) {
+              cursor.toArray(function(err, docs) { callback(docs); });
+            });
+          });
+        });      
+      },
+    ],
+    
+    // Handle the final result
+    function(docs) {
+      self.render('rss.haml.html', {
+        locals: {
+          entries:docs,
+          querystring:querystring
+        },
+        layout: false
+      });                            
+      self.contentType('application/xhtml+xml');
+    }
+  );
+})
 
 /**
   Static file providers
@@ -162,5 +202,4 @@ get('/*.js', function(file){
   this.sendfile(__dirname + '/public/' + file + '.js');
 })
 
-// run(port, host)
-run()
+run(port, host)

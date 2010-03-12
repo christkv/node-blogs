@@ -1,0 +1,18 @@
+%rss{version:"2.0"}
+  %channel
+    %title Nodeblogs.com Feed
+    %link http://www.nodeblogs.com/feed/blogs
+    %description Nodeblogs aggregated feed
+    %pubDate= new Date().toString()
+    %generator http://github.com/christkv/node-blogs
+    %language en
+    :each entry in entries
+      %item
+        %title= entry.title.escapeHTML()
+        %category= entry.categories.join(",").escapeHTML()
+        %author= entry.creator.escapeHTML()
+        %guid= entry.guid
+        %link= entry.link
+        %description= entry.description.escapeHTML()
+        %pubDate= entry.published_on.toString()
+        
