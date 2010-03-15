@@ -1,15 +1,22 @@
 require.paths.unshift('../lib');
 require.paths.unshift('../external-libs');
 
-var test = require("mjsunit");
-sys = require("sys");
-var http = require('http');
-var urlParser = require('url');
-var mongo = require('mongodb/mongodb');
+var kiwi = require('kiwi'),
+  express = kiwi.require('express'),
+  sys = require('sys'),
+  simplifier = require('simplifier/simplifier'),
+  querystring = require('querystring'),
+  fs = require('fs'),
+  urlParser = require('url'),
+  http = require('http')
+
+// Initialize the seeds  
+kiwi.seed('mongodb-native');  
+// Fetch the library records
+var mongo = require('mongodb');
+// Fetch other needed classes
 var FeedReader = require('feedreader/feedreader').FeedReader;
-var MD5 = require('mongodb/mongodb/crypto/md5');
-var fs = require('fs');
-var querystring = require('querystring');
+var MD5 = require('mongodb/crypto/md5');
 
 var host = process.env['MONGO_NODE_DRIVER_HOST'] != null ? process.env['MONGO_NODE_DRIVER_HOST'] : 'localhost';
 var port = process.env['MONGO_NODE_DRIVER_PORT'] != null ? process.env['MONGO_NODE_DRIVER_PORT'] : mongo.Connection.DEFAULT_PORT;
@@ -157,7 +164,7 @@ function fetchGithub(db, users) {
 function fetchGetUrl(url, callback) {
   var url = urlParser.parse(url);  
   var client = http.createClient(80, url.host);
-  var client.setTimeout(5000);
+  client.setTimeout(5000);
   client.addListener("timeout", function() {
     client.close();
   });
