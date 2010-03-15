@@ -157,6 +157,11 @@ function fetchGithub(db, users) {
 function fetchGetUrl(url, callback) {
   var url = urlParser.parse(url);  
   var client = http.createClient(80, url.host);
+  var client.setTimeout(5000);
+  client.addListener("timeout", function() {
+    client.close();
+  });
+  
   var path = url.pathname + (url.search == null ? '' : url.search);
   var request = client.request("GET", path, {"host": url.host});
   
