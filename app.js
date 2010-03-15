@@ -1,13 +1,21 @@
 require.paths.unshift('lib');
 require.paths.unshift('external-libs');
-require.paths.unshift('external-libs/express');
+
+var kiwi = require('kiwi'),
+  express = kiwi.require('express'),
+  sys = require('sys'),
+  simplifier = require('simplifier/simplifier'),
+  querystring = require('querystring')
+
+// Require the express libary
 require('express');
 require('express/plugins');
 
-var mongo = require('mongodb/mongodb');
-var sys = require('sys');
-var simplifier = require('simplifier/simplifier');
-var querystring = require('querystring');
+// Initialize the seeds  
+kiwi.seed('mongodb-native');
+  
+// Fetch the library records
+var mongo = require('mongodb');
 
 // Set up the host for the server
 var host = process.env['NODEBLOGS_HOST'] != null ? process.env['NODEBLOGS_HOST'] : 'localhost';
@@ -24,6 +32,9 @@ String.prototype.escapeHTML = function() {
 
 // Configure the app
 configure(function(){
+  kiwi.seed('haml')
+  kiwi.seed('sass')
+
   use(MethodOverride);
   use(ContentLength);
   use(CommonLogger);  
