@@ -166,7 +166,15 @@ function fetchGetUrl(url, callback) {
   var client = http.createClient(80, url.host);
   client.setTimeout(5000);
   client.addListener("timeout", function() {
-    client.close();
+    sys.puts("================================= recevied timeout event");
+    client.forceClose();
+    callback("");
+  });
+  
+  client.addListener("close", function() {
+    sys.puts("================================= recevied close event");
+    client.forceClose();
+    callback("");    
   });
   
   var path = url.pathname + (url.search == null ? '' : url.search);
