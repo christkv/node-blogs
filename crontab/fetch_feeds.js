@@ -173,8 +173,8 @@ function fetchGetUrl(url, callback) {
   
   client.addListener("close", function() {
     sys.puts("================================= recevied close event");
-    client.forceClose();
-    callback("");    
+    // client.forceClose();
+    // callback("");    
   });
   
   var path = url.pathname + (url.search == null ? '' : url.search);

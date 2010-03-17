@@ -81,8 +81,6 @@ get('/', function() {
         }
       }
     }}).get();
-    
-    
   }).toString();
 
   // Execute 
