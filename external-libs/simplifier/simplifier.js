@@ -1,16 +1,17 @@
 var sys = require('sys');
 
-var Simplifier = exports.Simplifier = function() {}
-
-Simplifier.prototype.execute = function(context, functions, finalFunction) {
-  this.functions = functions;
-  this.results = {};
-  this.finalFunction = finalFunction;
-  this.totalNumberOfCallbacks = 0
+var Simplifier = exports.Simplifier = function(context) {
   this.context = context;
-  var self = this;
+}
+
+Simplifier.prototype.execute = function() {
+  this.functions = Array.prototype.slice.call(arguments, 0);
+  this.results = {};
+  this.finalFunction = this.functions.pop();
+  this.totalNumberOfCallbacks = 0
+  var self = this.context != null ? this.context : this;
   
-  functions.forEach(function(f) {
+  this.functions.forEach(function(f) {
     f(function() {
       self.totalNumberOfCallbacks = self.totalNumberOfCallbacks + 1;
       self.results[f] = Array.prototype.slice.call(arguments, 0);     
@@ -18,10 +19,10 @@ Simplifier.prototype.execute = function(context, functions, finalFunction) {
         // Order the results by the calling order of the functions
         var finalResults = [];
         self.functions.forEach(function(f) {
-          finalResults.push(self.results[f][0]);
+          finalResults.push(self.results[f]);
         })
         // Call the final function passing back all the collected results in the right order 
-        finalFunction.apply(self.context, finalResults);
+        self.finalFunction.apply(self, finalResults);
       }
     });
   });

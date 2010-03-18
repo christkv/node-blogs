@@ -5,7 +5,7 @@ var kiwi = require('kiwi'),
   express = kiwi.require('express'),
   sys = require('sys'),
   simplifier = require('simplifier/simplifier'),
-  querystring = require('querystring')
+  querystring = require('querystring');
 
 // Require the express libary
 require('express');
@@ -85,45 +85,40 @@ get('/', function() {
 
   // Execute 
   new simplifier.Simplifier().execute(
-    // Context
-    self,
-    
-    // Array of processes to execute before doing final handling
-    [
-      function(callback) {
-        db.collection('blogentries', function(err, collection) {
-          collection.find({}, {limit:10}, function(err, cursor) {
-            cursor.sort('published_on_mili', -1, function(err, cursor) {
-              cursor.toArray(function(err, docs) { callback(docs); });
-            });
+    // Functions to execute
+    function(callback) {
+      db.collection('blogentries', function(err, collection) {
+        collection.find({}, {limit:10}, function(err, cursor) {
+          cursor.sort('published_on_mili', -1, function(err, cursor) {
+            cursor.toArray(function(err, docs) { callback(err, docs); });
           });
-        });      
-      },
+        });
+      });      
+    },
 
-      function(callback) {
-        db.collection('githubusers', function(err, collection) {
-          collection.find({}, {limit:30}, function(err, cursor) {
-            cursor.toArray(function(err, users) { callback(users); })
-          });
-        });      
-      },
-      
-      function(callback) {
-        db.collection('githubprojects', function(err, collection) {
-          collection.find({}, {limit:45, sort:[['watchers', -1]]}, function(err, cursor) {
-            cursor.toArray(function(err, projects) { callback(projects); })
-          });
-        });              
-      }
-    ],
+    function(callback) {
+      db.collection('githubusers', function(err, collection) {
+        collection.find({}, {limit:30}, function(err, cursor) {
+          cursor.toArray(function(err, users) { callback(err, users); })
+        });
+      });      
+    },
     
+    function(callback) {
+      db.collection('githubprojects', function(err, collection) {
+        collection.find({}, {limit:45, sort:[['watchers', -1]]}, function(err, cursor) {
+          cursor.toArray(function(err, projects) { callback(err, projects); })
+        });
+      });              
+    },
+        
     // Handle the final result
-    function(docs, users, projects) {
+    function(docsResult, usersResult, projectsResult) {
       self.render('index.haml.html', {
         locals: {
-          entries:docs,
-          users:users,
-          projects:projects,
+          entries:docsResult[1],
+          users:usersResult[1],
+          projects:projectsResult[1],
           initialize_function:googleMapsInitializeFunction
         }
       });                            
