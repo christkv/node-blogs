@@ -94,16 +94,19 @@ function fetchGithub(db, users) {
         // Process the user
         fetchGetUrl("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github), function(body) {
           // Modify documents for storage
-          var repositories = JSON.parse(body).repositories;
-          if(repositories != null) {
+          var repositoriesObject = JSON.parse(body);
+          if(repositoriesObject != null && repositoriesObject.repositories != null) {
+            var repositories = repositoriesObject.repositories;
             repositories.forEach(function(repo) {
               new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(db) {
                 db.collection('githubprojects', function(err, collection) {
                   var doneInternal = false;
 
                   fetchGetUrl("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github) + "/" + querystring.escape(repo.name), function(body) {
-                    var repository = JSON.parse(body).repository;
-                    if(repository != null) {
+                    var repoObject = JSON.parse(body)
+                    // Ensure we have a valid json object
+                    if(repoObject != null && repoObject.repository != null) {
+                      var repository = repoObject.repository;
                       if(((repository.description != null && repository.description.match(/node/i)) || repository.name.match(/node/i)) && repository.fork == false) {
                         sys.puts("== Fetching: [" + repository.name + "] " + repository.description);
                         repository['_id'] = repository.owner + repository.name;
@@ -135,8 +138,9 @@ function fetchGithub(db, users) {
         // fetch all repos for a user
         fetchGetUrl("http://github.com/api/v2/json/user/show/" + querystring.escape(user.github), function(body) {
           // Modify documents for storage
-          var user = JSON.parse(body).user;
-          if(user != null) {
+          var userObject = JSON.parse(body);
+          if(userObject != null && userObject.user != null) {
+            var user = userObject.user;
             user['_id'] = user.login;
             user['gravatar_url'] = 'https://secure.gravatar.com/avatar/' + user.gravatar_id;
             db.collection('githubusers', function(err, collection) {
