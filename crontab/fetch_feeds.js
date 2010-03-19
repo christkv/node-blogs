@@ -2,7 +2,6 @@ require.paths.unshift('../lib');
 require.paths.unshift('../external-libs');
 
 var kiwi = require('kiwi'),
-  express = kiwi.require('express'),
   sys = require('sys'),
   simplifier = require('simplifier/simplifier'),
   querystring = require('querystring'),
