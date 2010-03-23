@@ -36,8 +36,8 @@ configure(function(){
   kiwi.seed('sass')
 
   use(MethodOverride);
+  use(Static);
   use(ContentLength);
-  use(CommonLogger);  
   use(Cookie);
   use(Session);
   use(Flash);
