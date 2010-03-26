@@ -137,15 +137,13 @@ get('/users/location', function() {
 
   // Execute 
   new simplifier.Simplifier().execute(
-    new simplifier.SerialFlow(
-      function(callback) {
-        db.collection('twitterusers', function(err, collection) {
-          collection.find({}, {limit:45, sort:[['followers', -1]], fields:['screen_name', 'loc', 'profile_image_url']}, function(err, cursor) {
-            cursor.toArray(function(err, users) { callback(err, users); });
-          });
-        });              
-      }
-    ),
+    function(callback) {
+      db.collection('twitterusers', function(err, collection) {
+        collection.find({}, {limit:45, sort:[['followers', -1]], fields:['screen_name', 'loc', 'profile_image_url']}, function(err, cursor) {
+          cursor.toArray(function(err, users) { callback(err, users); });
+        });
+      });              
+    },
     
     // Handle the final result
     function(err, userlocations) {
@@ -161,17 +159,15 @@ get('/feeds/main.xml', function() {
 
   // Execute 
   new simplifier.Simplifier().execute(
-    new simplifier.SerialFlow(
-      function(callback) {
-        db.collection('blogentries', function(err, collection) {
-          collection.find({}, {limit:25}, function(err, cursor) {
-            cursor.sort('published_on_mili', -1, function(err, cursor) {
-              cursor.toArray(function(err, docs) { callback(err, docs); });
-            });
+    function(callback) {
+      db.collection('blogentries', function(err, collection) {
+        collection.find({}, {limit:25}, function(err, cursor) {
+          cursor.sort('published_on_mili', -1, function(err, cursor) {
+            cursor.toArray(function(err, docs) { callback(err, docs); });
           });
-        });      
-      }
-    ),
+        });
+      });      
+    },
     
     // Handle the final result
     function(err, docs) {
