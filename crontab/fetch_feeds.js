@@ -3,7 +3,6 @@ require.paths.unshift('../external-libs');
 
 var kiwi = require('kiwi'),
   sys = require('sys'),
-  simplifier = require('simplifier/simplifier'),
   querystring = require('querystring'),
   fs = require('fs'),
   urlParser = require('url'),
@@ -11,11 +10,13 @@ var kiwi = require('kiwi'),
 
 // Initialize the seeds  
 kiwi.seed('mongodb-native');  
+kiwi.seed('simplify');  
 // Fetch the library records
-var mongo = require('mongodb');
+var mongo = require('mongodb'), 
+  simplifier = require('simplifier');
 // Fetch other needed classes
 var FeedReader = require('feedreader/feedreader').FeedReader;
-var MD5 = require('mongodb/crypto/md5');
+var MD5 = mongo.MD5;
 
 var host = process.env['MONGO_NODE_DRIVER_HOST'] != null ? process.env['MONGO_NODE_DRIVER_HOST'] : 'localhost';
 var port = process.env['MONGO_NODE_DRIVER_PORT'] != null ? process.env['MONGO_NODE_DRIVER_PORT'] : mongo.Connection.DEFAULT_PORT;
@@ -25,17 +26,17 @@ fs.readFile("../conf/content.json", function(err, data) {
   var users = JSON.parse(data);
 
   // Fetch all the blog content
-  new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(db) {
+  new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
     fetchBlogs(db, users);
   });
   
   // Fetch all the github content
-  new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(db) {
+  new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
     fetchGithub(db, users);
   });
 
   // Fetch all the twitter info for a user
-  new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(db) {
+  new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
     fetchTwitter(db, users);
   });
 });
@@ -98,7 +99,7 @@ function fetchGithub(db, users) {
           if(repositoriesObject != null && repositoriesObject.repositories != null) {
             var repositories = repositoriesObject.repositories;
             repositories.forEach(function(repo) {
-              new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(db) {
+              new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
                 db.collection('githubprojects', function(err, collection) {
                   var doneInternal = false;
 
