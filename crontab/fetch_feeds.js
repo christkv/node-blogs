@@ -11,9 +11,11 @@ var kiwi = require('kiwi'),
 // Initialize the seeds  
 kiwi.seed('mongodb-native');  
 kiwi.seed('simplify');  
+
 // Fetch the library records
 var mongo = require('mongodb'), 
   simplifier = require('simplifier');
+
 // Fetch other needed classes
 var FeedReader = require('feedreader/feedreader').FeedReader;
 var MD5 = mongo.MD5;
@@ -24,21 +26,29 @@ var port = process.env['MONGO_NODE_DRIVER_PORT'] != null ? process.env['MONGO_NO
 // Read the content file containing all the aggregation users and their content
 fs.readFile("../conf/content.json", function(err, data) {
   var users = JSON.parse(data);
+  var github_user = process.argv[2];
 
-  // Fetch all the blog content
-  new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
-    fetchBlogs(db, users);
-  });
-  
-  // Fetch all the github content
-  new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
-    fetchGithub(db, users);
+  // List of users to execute
+  var execute_users = users.filter(function(user) {
+    return user.github == github_user ? true : false;
   });
 
-  // Fetch all the twitter info for a user
-  new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
-    fetchTwitter(db, users);
-  });
+  if(execute_users.length == 1) {
+    // Fetch all the blog content
+    new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
+      fetchBlogs(db, execute_users);
+    });
+
+    // Fetch all the github content
+    new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
+      fetchGithub(db, execute_users);
+    });
+
+    // Fetch all the twitter info for a user
+    new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
+      fetchTwitter(db, execute_users);
+    });    
+  }
 });
 
 /***********************************************************************
@@ -55,7 +65,7 @@ function fetchTwitter(db, users) {
         twitterUser['_id'] = twitterUser.screen_name;
 
         // Now geocode the location if possible using google
-        fetchGetUrl('http://maps.google.com/maps/geo?output=json&q=' + querystring.escape(twitterUser.location), function(body) {
+        fetchGetUrl('http://maps.google.com/maps/geo?output=json&q=' + querystring.escape(twitterUser.location), function(body) {          
           var geoObject = JSON.parse(body);
           if(geoObject.Status.code == 200) {
             twitterUser['loc'] = {lat:geoObject.Placemark[0].Point.coordinates[0], long:geoObject.Placemark[0].Point.coordinates[1], addr:geoObject.Placemark[0].address};
@@ -104,20 +114,22 @@ function fetchGithub(db, users) {
                   var doneInternal = false;
 
                   fetchGetUrl("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github) + "/" + querystring.escape(repo.name), function(body) {
-                    var repoObject = JSON.parse(body)
-                    // Ensure we have a valid json object
-                    if(repoObject != null && repoObject.repository != null) {
-                      var repository = repoObject.repository;
-                      if(((repository.description != null && repository.description.match(/node/i)) || repository.name.match(/node/i)) && repository.fork == false) {
-                        sys.puts("== Fetching: [" + repository.name + "] " + repository.description);
-                        repository['_id'] = repository.owner + repository.name;
-                        repository['description'] = repository.description == null ? 'No description on github' : repository.description;
-                        repository['url'] = "http://www.github.com/" + repository.username + "/" + repository.name;
-                        delete repository.id;
+                    try {
+                      var repoObject = JSON.parse(body)
+                      // Ensure we have a valid json object
+                      if(repoObject != null && repoObject.repository != null) {
+                        var repository = repoObject.repository;
+                        if(((repository.description != null && repository.description.match(/node/i)) || repository.name.match(/node/i)) && repository.fork == false) {
+                          sys.puts("== Fetching: [" + repository.name + "] " + repository.description);
+                          repository['_id'] = repository.owner + repository.name;
+                          repository['description'] = repository.description == null ? 'No description on github' : repository.description;
+                          repository['url'] = "http://www.github.com/" + repository.username + "/" + repository.name;
+                          delete repository.id;
 
-                        collection.save(repository, function(err, doc) {});
-                      }
-                    }
+                          collection.save(repository, function(err, doc) {});
+                        }
+                      }                  
+                    } catch (err) {}
                     // Finish internal fetch
                     doneInternal = true;
                   });
@@ -168,12 +180,12 @@ function fetchGithub(db, users) {
 function fetchGetUrl(url, callback) {
   var url = urlParser.parse(url);  
   var client = http.createClient(80, url.host);
-  // client.setTimeout(5000);
-  // client.addListener("timeout", function() {
-  //   sys.puts("================================= recevied timeout event");
-  //   client.forceClose();
-  //   callback("");
-  // });
+  client.setTimeout(5000);
+  client.addListener("timeout", function() {
+    sys.puts("================================= received timeout event");
+    client.forceClose();
+    callback("");
+  });
   
   var path = url.pathname + (url.search == null ? '' : url.search);
   var request = client.request("GET", path, {"host": url.host});
@@ -184,7 +196,7 @@ function fetchGetUrl(url, callback) {
     response.addListener("data", function (chunk) { body = body + chunk; });
     response.addListener("end", function() { callback(body); });
   });
-  request.close();          
+  request.end();          
 }
 
 /***********************************************************************

@@ -31,11 +31,12 @@ String.prototype.escapeHTML = function() {
   return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+String.prototype.unEscapeHTML = function() {
+  return this.replace(/&amp;/g, '&').replace(/&lt;/g,'<').replace(/&gt;/g, '>');
+}
+
 // Configure the app
 configure(function(){
-  kiwi.seed('haml')
-  kiwi.seed('sass')
-
   use(MethodOverride);
   use(Static);
   use(ContentLength);
@@ -117,7 +118,7 @@ get('/', function() {
         
     // Handle the final result
     function(docsResult, usersResult, projectsResult) {
-      self.render('index.haml.html', {
+      self.render('index.html.haml', {
         locals: {
           entries:docsResult[1],
           users:usersResult[1],
@@ -171,7 +172,7 @@ get('/feeds/main.xml', function() {
     
     // Handle the final result
     function(err, docs) {
-      self.render('rss.haml.html', {
+      self.render('rss.html.haml', {
         locals: {
           entries:docs,
           querystring:querystring

@@ -6,7 +6,7 @@
     %pubDate= new Date().toString()
     %generator http://github.com/christkv/node-blogs
     %language en
-    :each entry in entries
+    - each entry in entries
       %item
         %title= entry.title.escapeHTML()
         %category= entry.categories.join(",").escapeHTML()

@@ -1242,8 +1242,6 @@ function __unescapeString(str) {
   return str;
 }
 
-process.mixin(exports, {
-  SaxParser: SaxParser
-});
+exports.SaxParser = SaxParser;
 
 })()
