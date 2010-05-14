@@ -1,12 +1,14 @@
 require.paths.unshift('../lib');
 require.paths.unshift('../external-libs');
+require.paths.unshift('../external-libs/node-httpclient/lib');
 
 var kiwi = require('kiwi'),
   sys = require('sys'),
   querystring = require('querystring'),
   fs = require('fs'),
   urlParser = require('url'),
-  http = require('http')
+  http = require('http'),
+  httpclient = require('httpclient');  
 
 // Initialize the seeds  
 kiwi.seed('mongodb-native');  
@@ -14,7 +16,7 @@ kiwi.seed('simplify');
 
 // Fetch the library records
 var mongo = require('mongodb'), 
-  simplifier = require('simplifier');
+    simplifier = require('simplifier');
 
 // Fetch other needed classes
 var FeedReader = require('feedreader/feedreader').FeedReader;
@@ -24,9 +26,10 @@ var host = process.env['MONGO_NODE_DRIVER_HOST'] != null ? process.env['MONGO_NO
 var port = process.env['MONGO_NODE_DRIVER_PORT'] != null ? process.env['MONGO_NODE_DRIVER_PORT'] : mongo.Connection.DEFAULT_PORT;
 
 // Read the content file containing all the aggregation users and their content
-fs.readFile("../conf/content.json", function(err, data) {
-  var users = JSON.parse(data);
+fs.readFile("../conf/content.json", function(err, data) {  
+  var users = JSON.parse(data.toString());
   var github_user = process.argv[2];
+  var service = process.argv[3];
 
   // List of users to execute
   var execute_users = users.filter(function(user) {
@@ -34,20 +37,22 @@ fs.readFile("../conf/content.json", function(err, data) {
   });
 
   if(execute_users.length == 1) {
-    // Fetch all the blog content
-    new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
-      fetchBlogs(db, execute_users);
-    });
-
-    // Fetch all the github content
-    new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
-      fetchGithub(db, execute_users);
-    });
-
-    // Fetch all the twitter info for a user
-    new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
-      fetchTwitter(db, execute_users);
-    });    
+    if(service == 'blog') {
+      // Fetch all the blog content
+      new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
+        fetchBlogs(db, execute_users);
+      });      
+    } else if(service == 'github') {
+      // Fetch all the github content
+      new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
+        fetchGithub(db, execute_users);
+      });      
+    } else if(service == 'twitter') {
+      // Fetch all the twitter info for a user
+      new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
+        fetchTwitter(db, execute_users);
+      });          
+    }
   }
 });
 
@@ -60,21 +65,28 @@ function fetchTwitter(db, users) {
 
   db.collection('twitterusers', function(err, collection) {
     users.forEach(function(user) {
-      fetchGetUrl("http://api.twitter.com/1/users/show.json?screen_name=" + querystring.escape(user.twitter), function(body) {
-        var twitterUser = JSON.parse(body);
-        twitterUser['_id'] = twitterUser.screen_name;
+      var client = new httpclient.httpclient();
 
-        // Now geocode the location if possible using google
-        fetchGetUrl('http://maps.google.com/maps/geo?output=json&q=' + querystring.escape(twitterUser.location), function(body) {          
-          var geoObject = JSON.parse(body);
-          if(geoObject.Status.code == 200) {
-            twitterUser['loc'] = {lat:geoObject.Placemark[0].Point.coordinates[0], long:geoObject.Placemark[0].Point.coordinates[1], addr:geoObject.Placemark[0].address};
-          }
-          // Save or update the twitter user
-          collection.save(twitterUser, function(err, twitterUser) {
-            totalParsed = totalParsed + 1;
-          });
-        });
+      client.perform("http://api.twitter.com/1/users/show.json?screen_name=" + querystring.escape(user.twitter), 'GET', function(result) {
+        var body = result.response.body;
+        if(body) {
+          var twitterUser = JSON.parse(body);
+          twitterUser['_id'] = twitterUser.screen_name;
+
+          // Now geocode the location if possible using google
+          var client = new httpclient.httpclient();
+          client.perform('http://maps.google.com/maps/geo?output=json&q=' + querystring.escape(twitterUser.location), 'GET', function(result) {
+            var body = result.response.body;
+            var geoObject = JSON.parse(body);
+            if(geoObject.Status.code == 200) {
+              twitterUser['loc'] = {lat:geoObject.Placemark[0].Point.coordinates[0], long:geoObject.Placemark[0].Point.coordinates[1], addr:geoObject.Placemark[0].address};
+            }
+            // Save or update the twitter user
+            collection.save(twitterUser, function(err, twitterUser) {
+              totalParsed = totalParsed + 1;
+            });
+          });          
+        }
       });
     });
   });
@@ -103,43 +115,34 @@ function fetchGithub(db, users) {
         var user = users[conf.position];
         sys.puts("============= fetching github info for: " + user.github);
         // Process the user
-        fetchGetUrl("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github), function(body) {
+        var client = new httpclient.httpclient();
+        client.perform("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github), 'GET', function(result) {
+          var body = result.response.body;
           // Modify documents for storage
           var repositoriesObject = JSON.parse(body);
           if(repositoriesObject != null && repositoriesObject.repositories != null) {
             var repositories = repositoriesObject.repositories;
             repositories.forEach(function(repo) {
-              new mongo.Db('nodeblogs', new mongo.Server(host, port, {}), {}).open(function(err, db) {
-                db.collection('githubprojects', function(err, collection) {
-                  var doneInternal = false;
+              db.collection('githubprojects', function(err, collection) {
+                var client = new httpclient.httpclient();
+                client.perform("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github) + "/" + querystring.escape(repo.name), 'GET', function(result) {
+                  var body = result.response.body;
+                  try {
+                    var repoObject = JSON.parse(body)
+                    // Ensure we have a valid json object
+                    if(repoObject != null && repoObject.repository != null) {
+                      var repository = repoObject.repository;
+                      if(((repository.description != null && repository.description.match(/node/i)) || repository.name.match(/node/i)) && repository.fork == false) {
+                        sys.puts("== Fetching: [" + repository.name + "] " + repository.description);
+                        repository['_id'] = repository.owner + repository.name;
+                        repository['description'] = repository.description == null ? 'No description on github' : repository.description;
+                        repository['url'] = "http://www.github.com/" + repository.username + "/" + repository.name;
+                        delete repository.id;
 
-                  fetchGetUrl("http://github.com/api/v2/json/repos/show/" + querystring.escape(user.github) + "/" + querystring.escape(repo.name), function(body) {
-                    try {
-                      var repoObject = JSON.parse(body)
-                      // Ensure we have a valid json object
-                      if(repoObject != null && repoObject.repository != null) {
-                        var repository = repoObject.repository;
-                        if(((repository.description != null && repository.description.match(/node/i)) || repository.name.match(/node/i)) && repository.fork == false) {
-                          sys.puts("== Fetching: [" + repository.name + "] " + repository.description);
-                          repository['_id'] = repository.owner + repository.name;
-                          repository['description'] = repository.description == null ? 'No description on github' : repository.description;
-                          repository['url'] = "http://www.github.com/" + repository.username + "/" + repository.name;
-                          delete repository.id;
-
-                          collection.save(repository, function(err, doc) {});
-                        }
-                      }                  
-                    } catch (err) {}
-                    // Finish internal fetch
-                    doneInternal = true;
-                  });
-
-                  var intervalIdInternal = setInterval(function() {
-                    if(doneInternal) { 
-                      clearInterval(intervalIdInternal);
-                      db.close();
-                    }
-                  }, 100);      
+                        collection.save(repository, function(err, doc) {});
+                      }
+                    }                  
+                  } catch (err) {}
                 })
               });
             });            
@@ -149,7 +152,9 @@ function fetchGithub(db, users) {
         });
 
         // fetch all repos for a user
-        fetchGetUrl("http://github.com/api/v2/json/user/show/" + querystring.escape(user.github), function(body) {
+        var client = new httpclient.httpclient();
+        client.perform("http://github.com/api/v2/json/user/show/" + querystring.escape(user.github), 'GET', function(result) {
+          var body = result.response.body;
           // Modify documents for storage
           var userObject = JSON.parse(body);
           if(userObject != null && userObject.user != null) {
@@ -180,11 +185,11 @@ function fetchGithub(db, users) {
 function fetchGetUrl(url, callback) {
   var url = urlParser.parse(url);  
   var client = http.createClient(80, url.host);
-  client.setTimeout(5000);
+  client.setTimeout(1000 * 360);
   client.addListener("timeout", function() {
     sys.puts("================================= received timeout event");
-    client.forceClose();
-    callback("");
+    client.destroy();
+    callback();
   });
   
   var path = url.pathname + (url.search == null ? '' : url.search);
@@ -192,7 +197,7 @@ function fetchGetUrl(url, callback) {
   
   request.addListener('response', function (response) {
     var body = '';
-    response.setBodyEncoding("utf8");
+    response.setEncoding("utf8");
     response.addListener("data", function (chunk) { body = body + chunk; });
     response.addListener("end", function() { callback(body); });
   });

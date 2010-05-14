@@ -67,7 +67,7 @@ TwitterNode.prototype.stream = function() {
     }
     twit._clientResponse = response;
 
-    response.setBodyEncoding('utf8');
+    response.setEncoding('utf8');
     response.addListener('data', function(chunk) {
       twit.parser.receive(chunk);
     });
