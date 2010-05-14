@@ -11,8 +11,8 @@ var kiwi = require('kiwi'),
   sys = require('sys');
   
 var current_location = 0;
-// var executor_time = 1000*60*30;
-var executor_time = 1000 * 180;
+var executor_time = 1000*60*30;
+// var executor_time = 1000 * 180;
 // Control execution
 var executing = false;
 var executing_timeout = 1000 * 60;
