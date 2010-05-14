@@ -32,5 +32,12 @@
     "github": "mikeal",
     "feed": "http://www.mikealrogers.com/archives/category/node-js/feed",
     "twitter": "mikeal"
+  },
+
+  { 
+    "name": "Christian Kvalheim",
+    "github": "christkv",
+    "feed": "http://christiankvalheim.com/rss",
+    "twitter": "christkv"
   }   
 ]
