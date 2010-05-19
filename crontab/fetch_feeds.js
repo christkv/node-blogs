@@ -241,7 +241,7 @@ function fetchBlogs(db, users) {
   
                 // Only insert a doc if it has a minimum set of fields
                 if(title.length > 0 && guid.length > 0 && description.length > 0 && item.pubDate != null) {
-                  if(description.match(/nodejs/i) != null || description.match(/javascript/i) != null) {
+                  if(description.match(/nodejs/i) != null || description.match(/javascript/i) != null || (categories != null && categories.match(/nodejs/) != null)) {
                     link = link.length == 0 ? guid : link;
                     var url = urlParser.parse(link);                      
                     var channel = url.protocol + "//" + url.host;
