@@ -1,3 +1,4 @@
+!= '<?xml version="1.0" encoding="UTF-8"?>'
 %rss{version:"2.0"}
   %channel
     %title Nodeblogs.com Feed
@@ -8,11 +9,11 @@
     %language en
     - each entry in entries
       %item
-        %title= entry.title.escapeHTML()
-        %category= entry.categories.join(",").escapeHTML()
-        %author= entry.creator.escapeHTML()
-        %guid= entry.guid
-        %link= entry.link
-        %description= entry.description.escapeHTML()
-        %pubDate= entry.published_on.toString()
+        %title!= entry.title.escapeHTML()
+        %category!= entry.categories.join(",").escapeHTML()
+        %author!= entry.creator.escapeHTML()
+        %guid!= entry.guid
+        %link!= entry.link
+        %description!= entry.description.escapeHTML()
+        %pubDate!= entry.published_on.toString()
         
