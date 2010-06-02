@@ -16,6 +16,7 @@ catch(err) {
 }
 
 function httpclient() {
+  var self = this;
 	var cookies = [];
 
   if( compress !== null ) {
@@ -127,7 +128,14 @@ function httpclient() {
 						"headers" : clients[key].headers
 					}
 				}
-				cb(resp);	
+				
+				// Check if this is a redirect
+        if(resp.response.status >= 300 && resp.response.status < 400) {
+          // this.perform = function(rurl, method, cb, data, exheaders, tlscb) {
+          self.perform(resp.response.headers.location, method, cb, data, exheaders, tlscb);
+        } else {
+          cb(resp);	          
+        }
 			});
 			res.addListener("error", function() {
 				cb(-1, res.headers, mybody.join(""));		

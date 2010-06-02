@@ -144,11 +144,8 @@ function fetchGithub(db, users) {
                         repository['url'] = "http://www.github.com/" + repository.username + "/" + repository.name;
                         delete repository.id;
                         
-                        // sys.puts(sys.inspect(repository))
-
                         collection.save(repository, function(err, doc) {
                           current_processed_number_of_repos = current_processed_number_of_repos + 1;
-                          // sys.puts("========================== err: " + err)
                         });
                       } else {
                         total_number_of_repos = total_number_of_repos - 1;
@@ -222,6 +219,7 @@ function fetchGetUrl(url, callback) {
 function fetchBlogs(db, users) {
   // Status variables to keep track of the state of the app
   var totalParsed = 0;
+  var totalToParse = -1;
 
   db.collection('blogs', function(err, collection) {
     db.collection('blogentries', function(err, entriesCollection) {
@@ -229,6 +227,8 @@ function fetchBlogs(db, users) {
       users.forEach(function(user) {
         var feedReader = new FeedReader(user.feed);
         feedReader.parse(function(document) {
+          totalToParse = document.length();
+          
           // Fetch the existing blog based on url
           collection.findOne({'url':user.feed}, function(err, doc) {
             var blog = doc != null ? doc : {'title':document.title, 'url': user.feed, 'description':document.description};
@@ -236,6 +236,7 @@ function fetchBlogs(db, users) {
   
             // Just save it (async so we don't care about waiting around)
             collection.save(blog, function(err, blogDoc) {
+              
               document.forEachEntry(function(item) {
                 var categories = [];
                 var title = item.title != null ? item.title.toString().trim() : '';
@@ -248,32 +249,38 @@ function fetchBlogs(db, users) {
                 var content = item.encoded != null ? item.encoded.content.toString().trim() : '';
                 var pubDate = item.pubDate != null ? new Date(Date.parse(item.pubDate.toString().trim())) : new Date();
                 if(item.category != null) {
-                  categories = (Array.isArray(item.category) ? item.category.map(function(cat) { return cat.toString(); }).join(",") : [item.category.toString])
+                  categories = (Array.isArray(item.category) ? item.category.map(function(cat) { return cat.toString(); }) : [item.category.toString])
                 }        
+                categories = categories.join(",");
   
                 // Only insert a doc if it has a minimum set of fields
-                if(title.length > 0 && guid.length > 0 && description.length > 0 && item.pubDate != null) {
+                if(title.length > 0 && guid.length > 0 && description.length > 0 && item.pubDate != null) {                  
                   if(description.match(/nodejs/i) != null || description.match(/javascript/i) != null || (categories != null && categories.match(/nodejs/) != null)) {
                     link = link.length == 0 ? guid : link;
                     var url = urlParser.parse(link);                      
-                    var channel = url.protocol + "//" + url.host;
+                    var channel = url.protocol + "//" + url.host;                    
+                    var ref = new mongo.DBRef('blogs', blogDoc._id, db.databaseName);
                     
                     // Build a simple object from the data
                     var doc = {'_id': md5, 'title':title, 'guid':guid, 'link':link, 'creator':creator, 'channel':channel,
                                 'categories': categories, 'description':description, 'content':content, 'published_on':pubDate, 'published_on_mili':pubDate.getTime(),
-                                'blog': new mongo.DBRef('blogs', blogDoc._id, db.databaseName)};
+                                'blog': ref};
+                    
                     // Insert document if it does not exist
                     entriesCollection.update({'_id':md5}, doc, {'upsert':true}, function(err, doc) {
                       sys.puts("  = inserted doc: " + guid);
                       sys.puts("    = title: " + title);
+
+                      // Build final document
+                      totalParsed = totalParsed + 1;
                     });                  
+                  } else {
+                    totalToParse = totalToParse - 1;
                   }
                 }
               });                
             });
   
-            // Build final document
-            totalParsed = totalParsed + 1;
           });          
         });    
       });      
@@ -285,7 +292,7 @@ function fetchBlogs(db, users) {
   });  
   
   var intervalId = setInterval(function() {
-    if(totalParsed == users.length) { 
+    if(totalParsed == totalToParse) { 
       clearInterval(intervalId);
       db.close();
     }
