@@ -103,7 +103,10 @@ function fetchTwitter(db, users) {
   Fetch all the github projects related to nodejs
 ***********************************************************************/
 function fetchGithub(db, users) {
-  var done = false, done2 = false;
+  // var done = false, done2 = false;
+  var total_number_of_repos = 0;
+  var current_processed_number_of_repos = 0;
+  var done = false;
   
   // Fetch the current status of the fetch (to get around the issue of 60 calls pr minute on github :( )
   db.collection('githubconf', function(err, collection) {
@@ -122,6 +125,8 @@ function fetchGithub(db, users) {
           var repositoriesObject = JSON.parse(body);
           if(repositoriesObject != null && repositoriesObject.repositories != null) {
             var repositories = repositoriesObject.repositories;
+            var total_number_of_repos = repositories.length;
+            
             repositories.forEach(function(repo) {
               db.collection('githubprojects', function(err, collection) {
                 var client = new httpclient.httpclient();
@@ -138,8 +143,13 @@ function fetchGithub(db, users) {
                         repository['description'] = repository.description == null ? 'No description on github' : repository.description;
                         repository['url'] = "http://www.github.com/" + repository.username + "/" + repository.name;
                         delete repository.id;
+                        
+                        // sys.puts(sys.inspect(repository))
 
-                        collection.save(repository, function(err, doc) {});
+                        collection.save(repository, function(err, doc) {
+                          current_processed_number_of_repos = current_processed_number_of_repos + 1;
+                          // sys.puts("========================== err: " + err)
+                        });
                       }
                     }                  
                   } catch (err) {}
@@ -163,14 +173,14 @@ function fetchGithub(db, users) {
             user['gravatar_url'] = 'https://secure.gravatar.com/avatar/' + user.gravatar_id;
             db.collection('githubusers', function(err, collection) {
               collection.save(user, function(err, user) {});
+              // Finish main loop
+              done2 = true;              
             })            
           }
-          // Finish main loop
-          done2 = true;
         });        
         
         var intervalId = setInterval(function() {
-          if(done & done2) { 
+          if(done & (current_processed_number_of_repos == total_number_of_repos)) { 
             clearInterval(intervalId);
             // Update the conf
             conf.position = conf.position + 1 >= users.length ? conf.position = 0 : conf.position + 1;
