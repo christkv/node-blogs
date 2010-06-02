@@ -10,7 +10,7 @@
     - each entry in entries
       %item
         %title!= entry.title.escapeHTML()
-        %category!= entry.categories.join(",").escapeHTML()
+        %category!= entry.categories && Array.isArray(entry.categories) ? entry.categories.join(",").escapeHTML() : entry.categories.escapeHTML()
         %author!= entry.creator.escapeHTML()
         %guid!= entry.guid
         %link!= entry.link
