@@ -104,7 +104,7 @@ function fetchTwitter(db, users) {
 ***********************************************************************/
 function fetchGithub(db, users) {
   // var done = false, done2 = false;
-  var total_number_of_repos = 0;
+  var total_number_of_repos = -1;
   var current_processed_number_of_repos = 0;
   var done = false;
   
@@ -125,8 +125,8 @@ function fetchGithub(db, users) {
           var repositoriesObject = JSON.parse(body);
           if(repositoriesObject != null && repositoriesObject.repositories != null) {
             var repositories = repositoriesObject.repositories;
-            var total_number_of_repos = repositories.length;
-            
+            total_number_of_repos = repositories.length;
+
             repositories.forEach(function(repo) {
               db.collection('githubprojects', function(err, collection) {
                 var client = new httpclient.httpclient();
@@ -150,6 +150,8 @@ function fetchGithub(db, users) {
                           current_processed_number_of_repos = current_processed_number_of_repos + 1;
                           // sys.puts("========================== err: " + err)
                         });
+                      } else {
+                        total_number_of_repos = total_number_of_repos - 1;
                       }
                     }                  
                   } catch (err) {}
