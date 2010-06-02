@@ -9,11 +9,11 @@
     %language en
     - each entry in entries
       %item
-        %title!= entry.title.escapeHTML()
-        %category!= entry.categories && Array.isArray(entry.categories) ? entry.categories.join(",").escapeHTML() : entry.categories.escapeHTML()
-        %author!= entry.creator.escapeHTML()
-        %guid!= entry.guid
+        %title= entry.title
+        %category= entry.categories && Array.isArray(entry.categories) ? entry.categories.join(",") : entry.categories
+        %author= entry.creator
+        %guid= entry.guid
         %link!= entry.link
-        %description!= entry.description.escapeHTML()
+        %description= entry.description
         %pubDate!= entry.published_on.toString()
         

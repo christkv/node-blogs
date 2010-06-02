@@ -231,30 +231,55 @@ function fetchBlogs(db, users) {
           
           // Fetch the existing blog based on url
           collection.findOne({'url':user.feed}, function(err, doc) {
-            var blog = doc != null ? doc : {'title':document.title, 'url': user.feed, 'description':document.description};
+            var blog = doc != null ? doc : {'title':document.title(), 'url': user.feed, 'description':document.description()};
             sys.puts("== Parsing: " + user.feed);
   
             // Just save it (async so we don't care about waiting around)
             collection.save(blog, function(err, blogDoc) {
               
               document.forEachEntry(function(item) {
-                var categories = [];
-                var title = item.title != null ? item.title.toString().trim() : '';
-                var creator = item.creator != null ? item.creator.toString().trim() : '';
-                creator = creator == '' ? item.author != null ? item.author.toString().trim() : '' : creator;
-                var guid = item.guid != null ? item.guid.toString().trim() : '';
-                var md5 = MD5.hex_md5(guid);
-                var link = item.link != null ? item.link.toString().trim() : '';
-                var description = item.description != null ? item.description.toString().trim() : '';
-                var content = item.encoded != null ? item.encoded.content.toString().trim() : '';
-                var pubDate = item.pubDate != null ? new Date(Date.parse(item.pubDate.toString().trim())) : new Date();
-                if(item.category != null) {
-                  categories = (Array.isArray(item.category) ? item.category.map(function(cat) { return cat.toString(); }) : [item.category.toString])
-                }        
-                categories = categories.join(",");
-  
+                var categories = [], title, creator, guid, md5, link, description, content, pubDate, content, description;
+                
+                // sys.puts("------------------------------------------------------------------------------------")
+                // sys.puts(sys.inspect(item))
+                
+                if(document.atom) {
+                  title = item.title != null ? item.title.toString().trim() : '';
+                  creator = item.author != null ? item.author.name.toString().trim() : '';
+                  guid = item.id != null ? item.id.toString().trim() : '';
+                  md5 = MD5.hex_md5(guid);
+                  // link = item.link != null ? item.link.toString().trim() : '';
+                  description = item.content != null ? item.content.toString().trim() : '';
+                  content = '';
+                  pubDate = item.updated != null ? new Date(Date.parse(item.updated.toString().trim())) : new Date();
+                                    
+                  var links = item.link.filter(function(link) {
+                    return link.attrs().rel == "self" ? true : false
+                  })
+                  
+                  if(links.length == 1) {
+                    link = links[0].attr('href').toString();
+                  } else {
+                    link = ''
+                  }
+                } else {
+                  title = item.title != null ? item.title.toString().trim() : '';
+                  creator = item.creator != null ? item.creator.toString().trim() : '';
+                  creator = creator == '' ? item.author != null ? item.author.toString().trim() : '' : creator;
+                  guid = item.guid != null ? item.guid.toString().trim() : '';
+                  md5 = MD5.hex_md5(guid);
+                  link = item.link != null ? item.link.toString().trim() : '';
+                  description = item.description != null ? item.description.toString().trim() : '';
+                  content = item.encoded != null ? item.encoded.content.toString().trim() : '';
+                  pubDate = item.pubDate != null ? new Date(Date.parse(item.pubDate.toString().trim())) : new Date();
+                  if(item.category != null) {
+                    categories = (Array.isArray(item.category) ? item.category.map(function(cat) { return cat.toString(); }) : [item.category.toString])
+                  }        
+                }
+                // Join categories
+                categories = categories.join(",");                    
                 // Only insert a doc if it has a minimum set of fields
-                if(title.length > 0 && guid.length > 0 && description.length > 0 && item.pubDate != null) {                  
+                if(title.length > 0 && guid.length > 0 && description.length > 0 && (item.pubDate != null || item.updated != null)) {                  
                   if(description.match(/nodejs/i) != null || description.match(/javascript/i) != null || (categories != null && categories.match(/nodejs/) != null)) {
                     link = link.length == 0 ? guid : link;
                     var url = urlParser.parse(link);                      
