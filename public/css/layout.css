@@ -2,10 +2,9 @@
 -----------------------------------------------
 Grey Box Method - Layout CSS
 ----------------------------------------------- */
-
-.map_canvas {
-	height:50;
-	width:100;
+#map_canvas {
+	height: 300px;
+	width: 350px;
 }
 
 body {
