@@ -3,6 +3,11 @@
 Grey Box Method - Layout CSS
 ----------------------------------------------- */
 
+.map_canvas {
+	height:50;
+	width:100;
+}
+
 body {
 	background: #eee;
 	border-top: 5px solid #000;
@@ -115,7 +120,7 @@ h2#page-heading {
 	padding-top:10px;
 }
 
-.block.map {
+div.block .map {
   height: 300;
 }
 
@@ -126,6 +131,7 @@ div.menu h2 {
 	margin:0;
 }
 div.menu .block {
+	background:#eee;
 	padding-top:0;
 }
 

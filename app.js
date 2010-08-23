@@ -1,57 +1,38 @@
 require.paths.unshift('lib');
 require.paths.unshift('external-libs');
 
-var kiwi = require('kiwi'),
-  express = kiwi.require('express'),
+var express = require('express'),
+  querystring = require('querystring'),
   sys = require('sys'),
-  querystring = require('querystring');
-
-// Require the express libary
-require('express');
-require('express/plugins');
-
-// Initialize the seeds  
-kiwi.seed('mongodb-native');
-kiwi.seed('simplify');
-  
-// Fetch the library records
-var mongo = require('mongodb'),
   simplifier = require('simplifier');
+
+// Get classes for Mongodb  
+var Db = require('mongodb').Db,
+  Server = require('mongodb').Server;
 
 // Set up the host for the server
 var host = process.env['NODEBLOGS_HOST'] != null ? process.env['NODEBLOGS_HOST'] : 'localhost';
 var port = process.env['NODEBLOGS_PORT'] != null ? process.env['NODEBLOGS_PORT'] : 3000;
 
-// Set up a Db and open connection to the mongodb
-var db = new mongo.Db('nodeblogs', new mongo.Server("127.0.0.1", 27017, {auto_reconnect: true}, {}));
-db.open(function(db) {});
+// Path to our public directory
+var pub = __dirname + '/public';
 
-// Just mix in a helper method to the String class
-String.prototype.escapeHTML = function() {
-  return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+// Auto-compile sass to css with "compiler"
+// and then serve with connect's staticProvider
+var app = express.createServer(
+    express.compiler({ src: pub, enable: ['sass'] }),
+    express.staticProvider(pub)
+);
 
-String.prototype.unEscapeHTML = function() {
-  return this.replace(/&amp;/g, '&').replace(/&lt;/g,'<').replace(/&gt;/g, '>');
-}
+// Optional since express defaults to CWD/views
+app.set('views', __dirname + '/views');
 
-// Configure the app
-configure(function(){
-  use(MethodOverride);
-  use(Static);
-  use(ContentLength);
-  use(Cookie);
-  use(Session);
-  use(Flash);
-  set('root', __dirname);
-});
+// Set our default template engine to "jade"
+// which prevents the need for extensions (although you can still mix and match)
+app.set('view engine', 'jade');
 
-/**
-  Index showing aggregated information
-**/
-get('/', function() {
-  var self = this;
-  
+// / Page showing the nodeblogs page
+app.get('/', function(req, res, next) {
   // Define google map initialize function to run on client
   var googleMapsInitializeFunction = (function initialize() {
     // Setup the map intialization
@@ -118,7 +99,7 @@ get('/', function() {
         
     // Handle the final result
     function(docsResult, usersResult, projectsResult) {
-      self.render('index.html.haml', {
+      res.render('index', {
         locals: {
           entries:docsResult[1],
           users:usersResult[1],
@@ -133,9 +114,7 @@ get('/', function() {
 /**
   Allows google maps gadget to render the user locations
 **/
-get('/users/location', function() {
-  var self = this;
-
+app.get('/users/location', function(req, res, next) {
   // Execute 
   new simplifier.Simplifier().execute(
     function(callback) {
@@ -148,16 +127,14 @@ get('/users/location', function() {
     
     // Handle the final result
     function(err, userlocations) {
-      self.halt(200, JSON.stringify(userlocations));
+      res.send(JSON.stringify(userlocations));
     })
 })
 
 /**
   RSS feed for aggregated blogs
 **/
-get('/feeds/main.xml', function() {  
-  var self = this;
-
+app.get('/feeds/main.xml', function(req, res, next) {
   // Execute 
   new simplifier.Simplifier().execute(
     function(callback) {
@@ -172,7 +149,7 @@ get('/feeds/main.xml', function() {
     
     // Handle the final result
     function(err, docs) {
-      self.render('rss.html.haml', {
+      res.render('rss', {
         locals: {
           entries:docs,
           querystring:querystring
@@ -180,25 +157,13 @@ get('/feeds/main.xml', function() {
         layout: false
       });   
                                
-      self.contentType('application/xhtml+xml');
+      res.contentType('application/xhtml+xml');
     }
   );
 })
 
-/**
-  Static file providers
-**/
-get('/public/*', function(file){
-  this.sendfile(__dirname + '/public/' + file)
-})
-
-get('/*.css', function(file){
-  // this.render(file + '.css', { layout: false })
-  this.sendfile(__dirname + '/public/' + file + '.css');
-})
-
-get('/*.js', function(file){
-  this.sendfile(__dirname + '/public/' + file + '.js');
-})
-
-run(port, host)
+var db = new Db('nodeblogs', new Server("127.0.0.1", 27017, {auto_reconnect: true}, {}));
+db.open(function(err, db) {
+  // Start listening
+  app.listen(3000);  
+});

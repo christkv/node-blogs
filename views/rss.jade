@@ -1,0 +1,19 @@
+!!! xml
+rss(version="2.0")
+  channel
+    title Nodeblogs.com Feed
+    link http://www.nodeblogs.com/feed/blogs
+    description Nodeblogs aggregated feed
+    pubDate= new Date().toString()
+    generator http://github.com/christkv/node-blogs
+    language en
+    - each entry in entries
+      item
+        title!= entry.title
+        category!= entry.categories && Array.isArray(entry.categories) ? entry.categories.join(",") : entry.categories
+        author!= entry.creator
+        guid!= entry.guid
+        link!= entry.link
+        description!= entry.description
+        pubDate!= entry.published_on.toString()
+        

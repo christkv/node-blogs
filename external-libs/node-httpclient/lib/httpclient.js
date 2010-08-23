@@ -1,4 +1,4 @@
-var http = require("./http");
+var http = require("http");
 var url = require("url");
 var sys = require("sys");
 var events = require("events");
@@ -140,49 +140,6 @@ function httpclient() {
 			res.addListener("error", function() {
 				cb(-1, res.headers, mybody.join(""));		
 			});
-      // if(res.headers["set-cookie"]) {
-      //   sys.puts("---------------------------------------------------------------");
-      //   sys.puts(sys.inspect(res.headers["set-cookie"]));
-      //   sys.puts("---------------------------------------------------------------");       
-      //   
-      //  res.headers["set-cookie"].forEach( function( cookie ) {
-      //    props = cookie.split(";");
-      //    var newcookie = {
-      //      "value": "",
-      //      "domain": "",
-      //      "path": "/",
-      //      "expires": ""
-      //    };
-      //    
-      //    newcookie.value = props.shift();
-      //    props.forEach( function( prop ) {
-      //      var parts = prop.split("="),
-      //      name = parts[0].trim();
-      //      switch(name.toLowerCase()) {
-      //        case "domain":
-      //          newcookie.domain = parts[1].trim();
-      //          break;
-      //        case "path":
-      //          newcookie.path = parts[1].trim();
-      //          break;
-      //        case "expires":
-      //          newcookie.expires = parts[1].trim();
-      //          break;
-      //      }
-      //    });
-      //    if(newcookie.domain == "") newcookie.domain = curl.hostname;
-      //    var match = cookies.filter(function(value, index, arr) {
-      //      if(value.domain == newcookie.domain && value.path == newcookie.path && value.value.split("=")[0] == newcookie.value.split("=")[0]) {
-      //        arr[index] = newcookie;
-      //        return true;
-      //      }
-      //      else {
-      //        return false;
-      //      }
-      //    });
-      //    if(match.length == 0) cookies.push(newcookie);
-      //  });
-      // }
 		});
 		if(method == "POST") {		  
 			req.write(data);
