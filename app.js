@@ -165,5 +165,5 @@ app.get('/feeds/main.xml', function(req, res, next) {
 var db = new Db('nodeblogs', new Server("127.0.0.1", 27017, {auto_reconnect: true}, {}));
 db.open(function(err, db) {
   // Start listening
-  app.listen(3000);  
+  app.listen(port, host);  
 });
